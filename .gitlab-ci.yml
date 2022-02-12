@@ -1,0 +1,33 @@
+image: "python:3.8-alpine"
+
+before_script:
+  - python --version
+  - pip install -r requirements-dev.txt
+
+stages:
+  # - analyze
+  - test
+
+# flake8:
+#   stage: analyze
+#   script:
+#   - flake8 --max-line-length=120 build/*.py
+
+# pylint:
+#   stage: analyze
+#   allow_failure: true
+#   script:
+#   - pylint -d C0301 build/*.py
+
+unittest:
+  tags:
+    - docker
+  stage: test
+  script:
+    - export PYTHONPATH="${PWD};${PYTHONPATH}"
+    - python -c "import sys;print(sys.path)"
+    - python -m xmlrunner discover --output-file report.xml -v
+  artifacts:
+    when: always
+    reports:
+      junit: report.xml

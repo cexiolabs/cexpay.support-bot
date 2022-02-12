@@ -1,0 +1,13 @@
+Коллеги,
+
+По запрошему идентификатору: `{{ input }}`
+
+Найден следующий ордер...
+
+Order ID: [{{ order_data.order_id }}](https://board.cexpay.io/yong/order/{{ order_data.order_id }})
+Client Order ID: {{ order_data.client_order_id }}
+Client Order Tag: {{ order_data.client_order_tag }}
+Processing Status: {{ order_data.status }}
+Processing Phase: {{ order_data.state }}
+Paid Status: {{ order_data.paid_status }}
+Deposit Address: [{{ order_data.deposit_address }}]({{ order_data.deposit_address_expolorer_url }})
