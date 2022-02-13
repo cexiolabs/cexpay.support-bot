@@ -41,21 +41,28 @@ class TelegramBot:
 		self._updater.start_polling()
 		self._updater.idle()
 
-	def _start(self, update: Update, context: CallbackContext):
+	def _start(self, update: Update, context: CallbackContext) -> None:
 		context.bot.send_message(chat_id=update.effective_chat.id, text="I'm a CEX Pay Support Bot, please talk to me!")
 
-	def _caps(self, update: Update, context: CallbackContext):
+	def _caps(self, update: Update, context: CallbackContext) -> None:
 		text_caps = ' '.join(context.args).upper()
 		context.bot.send_message(chat_id=update.effective_chat.id, text=text_caps)
 
-	def _message(self, update: Update, context: CallbackContext):
+	def _message(self, update: Update, context: CallbackContext) -> None:
 		context.bot.send_message(chat_id=update.effective_chat.id, text=update.message.text)
 
-	def _order(self, update: Update, context: CallbackContext):
+	def _order(self, update: Update, context: CallbackContext) -> None:
 		try:
-			text = update.message.text
+			message = update.message
+			bot_name = message.bot.name
+			text = message.text
+
 			args = text.split(" ")
+			command = args[0]
 			variant_order_identifier = args[1]
+
+			if not command.endswith(bot_name):
+				return
 
 			order_status: OrderStatus = self._commander.order_status(variant_order_identifier = variant_order_identifier)
 
@@ -66,7 +73,16 @@ class TelegramBot:
 
 			response_text: str = render_message(__name__, "order-accepted.mustache.txt", render_context)
 
-			context.bot.send_message(chat_id=update.effective_chat.id, text=response_text, parse_mode = ParseMode.MARKDOWN)
+			context.bot.send_message(
+				chat_id = update.effective_chat.id,
+				reply_to_message_id = message.message_id,
+				text=response_text,
+				parse_mode = ParseMode.MARKDOWN
+			)
 		except Exception as ex:
-			context.bot.send_message(chat_id=update.effective_chat.id, text=str(ex))
+			context.bot.send_message(
+				chat_id = update.effective_chat.id,
+				reply_to_message_id = message.message_id,
+				text = str(ex)
+			)
 		pass
