@@ -1,0 +1,21 @@
+name: Sanity check build of docker image
+
+on:
+  push:
+    branches:
+      - '*'
+
+jobs:
+  build-images:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      # See https://github.com/docker/build-push-action/blob/master/docs/advanced/tags-labels.md
+      - name: Build
+        id: docker_build
+        uses: docker/build-push-action@v2
+        with:
+          push: false
+          file: docker/Dockerfile
