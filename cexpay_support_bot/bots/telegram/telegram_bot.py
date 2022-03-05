@@ -1,5 +1,5 @@
 from telegram import ParseMode, Update
-from telegram.ext import CallbackContext, CommandHandler, Filters, MessageHandler, Updater
+from telegram.ext import CallbackContext, CommandHandler, Filters, Handler, MessageHandler, Updater
 
 from cexpay_support_bot.bots.utils import render_message
 from cexpay_support_bot.commander import Commander
@@ -7,13 +7,14 @@ from cexpay_support_bot.model.order_status import OrderStatus
 
 class TelegramBot:
 
-	def __init__(self, commander: Commander, telegram_token: str) -> None:
+	def __init__(self, commander: Commander, telegram_token: str, allowed_chats: list[str]) -> None:
 		assert isinstance(commander, Commander)
 		assert isinstance(telegram_token, str)
 
 		self._updater = None
 		self._commander = commander
 		self._telegram_token = telegram_token
+		self.allowed_chats = allowed_chats
 		pass
 
 	def __enter__(self):
@@ -25,7 +26,7 @@ class TelegramBot:
 		caps_handler = CommandHandler('caps', self._caps)
 		self._updater.dispatcher.add_handler(caps_handler)
 
-		status_handler = CommandHandler('order', self._order)
+		status_handler = CommandHandler('order', self._verify_permission(self._order, self.allowed_chats))
 		self._updater.dispatcher.add_handler(status_handler)
 
 		echo_handler = MessageHandler(Filters.text & (~Filters.command), self._message)
@@ -86,3 +87,23 @@ class TelegramBot:
 				text = str(ex)
 			)
 		pass
+
+	def _permission_denied(self, update: Update, context: CallbackContext) -> None:
+		text = "Permission denied"
+		context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+
+	def _verify_permission(self, handler: Handler, allowed_chats: list[str]) -> Handler:
+
+		def permission_handler(update: Update, context: CallbackContext) -> None:
+			current_chat: str = update.effective_chat.title
+			if (current_chat in allowed_chats):
+				handler(update, context)
+			else:
+				self._permission_denied(update, context)
+
+		# (self, update: Update, allowed_chats: List[str]):
+		# current_chat: str = update.effective_chat.title
+		# if (not allowed_chats in allowed_chats)
+
+		return permission_handler
+

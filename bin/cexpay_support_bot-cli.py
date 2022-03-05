@@ -12,7 +12,7 @@ from typing_extensions import NoReturn
 from cexpay_support_bot.commander import Commander
 from cexpay_support_bot.bots.telegram.telegram_bot import TelegramBot
 
-def main(cexpay_api_key: str, cexpay_api_passphrase: str, cexpay_api_secret: str, bot_telegram_token: str, cexpay_api_url: Optional[str] = None):
+def main(cexpay_api_key: str, cexpay_api_passphrase: str, cexpay_api_secret: str, bot_telegram_token: str, cexpay_api_url: Optional[str] = None, allowed_chats: list[str] = []):
 	logging.basicConfig(stream=stderr)
 
 	main_logger: logging.Logger = logging.getLogger("main")
@@ -29,7 +29,7 @@ def main(cexpay_api_key: str, cexpay_api_passphrase: str, cexpay_api_secret: str
 			cexpay_api_url = cexpay_api_url
 		) as commander:
 
-			with TelegramBot(commander, bot_telegram_token) as telegram_bot:
+			with TelegramBot(commander, bot_telegram_token, allowed_chats) as telegram_bot:
 				main_logger.info("Entering main loop ...")
 				telegram_bot.idle()
 
@@ -56,8 +56,14 @@ if __name__ == "__main__":
 	cexpay_api_passphrase = _get_environ_variable('CEXPAY_API_PASSPHRASE', 2)
 	cexpay_api_secret = _get_environ_variable('CEXPAY_API_SECRET', 3)
 	cexpay_api_url = environ.get('CEXPAY_API_URL', None)
-
 	bot_telegram_token = _get_environ_variable('BOT_TELEGRAM_TOKEN', 4)
+	allowed_chats_str =_get_environ_variable('ALLOWED_CHATS', 5)
 
+	allowed_chats = allowed_chats_str.split(',')
+	
+	if (allowed_chats.count == 0):
+		print("A required environment variable ALLOWED_CHATS is not set.", file=sys.stderr)
+		sys.exit(6)
+	
 	# launch application loop
-	main(cexpay_api_key, cexpay_api_passphrase, cexpay_api_secret, bot_telegram_token, cexpay_api_url)
+	main(cexpay_api_key, cexpay_api_passphrase, cexpay_api_secret, bot_telegram_token, cexpay_api_url, allowed_chats)

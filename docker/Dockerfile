@@ -25,6 +25,7 @@ RUN \
   source .venv/bin/activate && \
   pip install --upgrade pip && \
   pip install --requirement requirements.txt
+ENV ALLOWED_CHATS=
 ENV CEXPAY_API_KEY=
 ENV CEXPAY_API_PASSPHRASE=
 ENV CEXPAY_API_SECRET=
