@@ -1,0 +1,8 @@
+{
+	"REJECTED:EXCHANGING:PAID": {
+		"en": "Коллеги,\n\nПо запрошенному идентификатору: `{{ input }}`\n\nНайден следующий ордер...\n\nOrder ID: [{{ order_id }}](https://board.cexpay.io/yong/order/{{ order_id }})\nClient Order ID: {{ client_order_id }}\nClient Order Tag: {{ client_order_tag }}\nProcessing Status: {{ status }}\nProcessing Phase: {{ state }}\nPaid Status: {{ paid_status }}\nDeposit Address: [{{ deposit_address }}]({{ deposit_address_expolorer_url }})"
+	},
+	"DEFAULT": {
+		"en": "Коллеги,\n\nПо запрошенному идентификатору: `{{ input }}`\n\nНайден следующий ордер...\n\nOrder ID: [{{ order_id }}](https://board.cexpay.io/yong/order/{{ order_id }})\nClient Order ID: {{ client_order_id }}\nClient Order Tag: {{ client_order_tag }}\nProcessing Status: {{ status }}\nProcessing Phase: {{ state }}\nPaid Status: {{ paid_status }}\nDeposit Address: [{{ deposit_address }}]({{ deposit_address_expolorer_url }})"
+	}
+}

@@ -1,4 +1,10 @@
-class OrderStatus:
+import os
+
+from chevron import render
+from cexpay_support_bot.utils import read_json_templates
+
+
+class BotOrder:
 	def __init__(self,
 		order_id: str,
 		client_order_id: str,
@@ -7,6 +13,7 @@ class OrderStatus:
 		state: str,
 		deposit_address: str,
 		deposit_address_expolorer_url: str,
+		paid_amount: str,
 		paid_status: str
 	) -> None:
 		assert isinstance(order_id, str)
@@ -20,8 +27,25 @@ class OrderStatus:
 		self._status = status
 		self._state = state
 		self._paid_status = paid_status
+		self._paid_amount = paid_amount
 		self._deposit_address = deposit_address
 		self._deposit_address_expolorer_url = deposit_address_expolorer_url
+		# Hardcoded values
+		self._language = "en"
+
+	@property
+	def explain_order(self) -> str:
+		order_explain_key = "%s:%s:%s" % (self._status, self._state, self._paid_status)
+		json_data = read_json_templates(__name__, os.path.join("..", "order-explanations.json"))
+		if (order_explain_key in json_data):
+			explanation_template = json_data[order_explain_key][self._language]
+		else:
+			explanation_template = json_data["DEFAULT"][self._language]
+		return render(explanation_template, self)
+	@explain_order.setter
+	def explain_order(self, value): raise AttributeError("The property 'explain_order' is readonly and cannot be set.")
+	@explain_order.deleter
+	def explain_order(self): raise AttributeError("The property 'explain_order' is readonly and cannot be deleted.")
 
 	@property
 	def client_order_id(self): return self._client_order_id
@@ -57,6 +81,14 @@ class OrderStatus:
 	def order_id(self, value): raise AttributeError("The property 'order_id' is readonly and cannot be set.")
 	@order_id.deleter
 	def order_id(self): raise AttributeError("The property 'order_id' is readonly and cannot be deleted.")
+
+	@property
+	def paid_amount(self): return self._paid_amount
+	@paid_amount.setter
+	def paid_status(self, value): raise AttributeError("The property 'paid_amount' is readonly and cannot be set.")
+	@paid_amount.deleter
+	def paid_status(self): raise AttributeError("The property 'paid_amount' is readonly and cannot be deleted.")
+
 
 	@property
 	def paid_status(self): return self._paid_status

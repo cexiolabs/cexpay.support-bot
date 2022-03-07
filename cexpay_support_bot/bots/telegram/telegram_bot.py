@@ -1,9 +1,12 @@
+import os
+from chevron import render
 from telegram import ParseMode, Update
 from telegram.ext import CallbackContext, CommandHandler, Filters, Handler, MessageHandler, Updater
 
 from cexpay_support_bot.bots.utils import render_message
-from cexpay_support_bot.commander import Commander
-from cexpay_support_bot.model.order_status import OrderStatus
+from cexpay_support_bot.commander import Commander, ExplanedOrder
+from cexpay_support_bot.model.bot_order import BotOrder
+from cexpay_support_bot.utils import read_json_templates
 
 class TelegramBot:
 
@@ -64,20 +67,17 @@ class TelegramBot:
 
 			if not command.endswith(bot_name):
 				return
-
-			order_status: OrderStatus = self._commander.order_status(variant_order_identifier = variant_order_identifier)
-
+			
+			bot_order: BotOrder = self._commander.order_status(variant_order_identifier = variant_order_identifier)
 			render_context: dict = {
-				"input": variant_order_identifier,
-				"order_data": order_status
+				"text_data": bot_order.explain_order
 			}
-
 			response_text: str = render_message(__name__, "order-accepted.mustache.txt", render_context)
 
 			context.bot.send_message(
 				chat_id = update.effective_chat.id,
 				reply_to_message_id = message.message_id,
-				text=response_text,
+				text = response_text,
 				parse_mode = ParseMode.MARKDOWN
 			)
 		except Exception as ex:
