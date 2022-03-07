@@ -10,14 +10,15 @@ from cexpay_support_bot.utils import read_json_templates
 
 class TelegramBot:
 
-	def __init__(self, commander: Commander, telegram_token: str, allowed_chats: list[str]) -> None:
+	def __init__(self, commander: Commander, telegram_token: str, telegram_explicit_bot_name: bool, allowed_chats: list[str]) -> None:
 		assert isinstance(commander, Commander)
 		assert isinstance(telegram_token, str)
 
 		self._updater = None
 		self._commander = commander
 		self._telegram_token = telegram_token
-		self.allowed_chats = allowed_chats
+		self._allowed_chats = allowed_chats
+		self._telegram_explicit_bot_name = telegram_explicit_bot_name
 		pass
 
 	def __enter__(self):
@@ -29,7 +30,7 @@ class TelegramBot:
 		caps_handler = CommandHandler('caps', self._caps)
 		self._updater.dispatcher.add_handler(caps_handler)
 
-		status_handler = CommandHandler('order', self._verify_permission(self._order, self.allowed_chats))
+		status_handler = CommandHandler('order', self._verify_permission(self._order, self._allowed_chats))
 		self._updater.dispatcher.add_handler(status_handler)
 
 		echo_handler = MessageHandler(Filters.text & (~Filters.command), self._message)
@@ -65,8 +66,9 @@ class TelegramBot:
 			command = args[0]
 			variant_order_identifier = args[1]
 
-			if not command.endswith(bot_name):
-				return
+			if (self._telegram_explicit_bot_name == True):
+				if not command.endswith(bot_name):
+					return
 			
 			bot_order: BotOrder = self._commander.order_status(variant_order_identifier = variant_order_identifier)
 			render_context: dict = {
