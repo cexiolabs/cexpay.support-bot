@@ -1,14 +1,13 @@
 from urllib.parse import quote, ParseResult
-from chevron import render
 from telegram import Chat, Message, ParseMode, Update
 from telegram.ext import CallbackContext, CommandHandler, Filters, Handler, MessageHandler, Updater
 from telegram.utils.helpers import escape_markdown
 
 from cexpay_support_bot.bots.utils import render_message
 from cexpay_support_bot.commander import Commander
+from cexpay_support_bot.config_provider import ConfigProvider
 from cexpay_support_bot.model.bot_order import BotOrder
-from cexpay_support_bot.utils import read_resource_json
-
+from cexpay_support_bot.provider_locator import ProviderLocator
 
 class _TelegramMarkdownWrap:
 	def __init__(self, wrap) -> None:
@@ -33,24 +32,35 @@ class _TelegramOrderReference:
 
 class TelegramBot:
 
-	def __init__(self, commander: Commander, telegram_token: str, telegram_explicit_bot_name: bool, allowed_chats: list[str], cexpay_board_url: ParseResult) -> None:
-		assert isinstance(commander, Commander)
-		assert isinstance(telegram_token, str)
-		assert isinstance(telegram_explicit_bot_name, bool)
-		assert isinstance(allowed_chats, list)
-		assert isinstance(cexpay_board_url, ParseResult)
-
+	def __init__(self, provider_locator: ProviderLocator) -> None:
 		self._updater = None
-		self._commander = commander
-		self._telegram_token = telegram_token
-		self._allowed_chats = allowed_chats
-		self._telegram_explicit_bot_name = telegram_explicit_bot_name
-		self._cexpay_board_url = cexpay_board_url
+		self._provider_locator = provider_locator
+		config_provider: ConfigProvider = provider_locator.get(ConfigProvider)
+		self._updater = None
+		self._telegram_token = config_provider.bot_telegram_token
+		self._telegram_explicit_bot_name = config_provider.telegram_explicit_bot_name
+		self._allowed_chats = config_provider.allowed_chats
+		self._cexpay_board_url = config_provider.cexpay_board_url
+		# assert isinstance(commander, Commander)
+		assert isinstance(self._telegram_token, str)
+		assert isinstance(self._telegram_explicit_bot_name, bool)
+		assert isinstance(self._allowed_chats, list)
+		assert isinstance(self._cexpay_board_url, ParseResult)
+
 		pass
 
 	def __enter__(self):
 		self._updater = Updater(token=self._telegram_token)
 		
+		auth_handler = CommandHandler('auth', self._auth)
+		self._updater.dispatcher.add_handler(auth_handler)
+
+		auth_cancel_handler = CommandHandler('authcancel', self._auth_cancel)
+		self._updater.dispatcher.add_handler(auth_cancel_handler)
+
+		auth_mykey_handler = CommandHandler('mykey', self._auth_mykey)
+		self._updater.dispatcher.add_handler(auth_mykey_handler)
+
 		start_handler = CommandHandler('start', self._start)
 		self._updater.dispatcher.add_handler(start_handler)
 
@@ -76,14 +86,63 @@ class TelegramBot:
 		self._updater.start_polling()
 		self._updater.idle()
 
+	def _auth(self, update: Update, context: CallbackContext) -> None:
+		user_id = update.effective_user.id
+		chat_id = update.effective_chat.id
+		commander = Commander(self._provider_locator, chat_id)
+		commander.auth_save(user_id, chat_id)
+		if (user_id == chat_id):
+			# User write direct message to bot
+			next_question = commander.auth_talker(user_id).next_question()
+			context.bot.send_message(chat_id = update.effective_chat.id, text = next_question)
+		else:
+			# User write message to bot in public chat
+			context.bot.send_message(
+				reply_to_message_id = update.message.message_id,
+				chat_id = update.effective_chat.id,
+				text = "To start auth, please talk direct to me!")
+
+	def _auth_cancel(self, update: Update, context: CallbackContext) -> None:
+		user_id = update.effective_user.id
+		chat_id = update.effective_chat.id
+		commander = Commander(self._provider_locator, chat_id)
+		if (user_id == chat_id):
+			# User write direct message to bot
+			commander.auth_cancel(user_id)
+			context.bot.send_message(chat_id = update.effective_chat.id, text = "Auth canceled")
+	
+	def _auth_mykey(self, update: Update, context: CallbackContext) -> None:
+		user_id = update.effective_user.id
+		chat_id = update.effective_chat.id
+		commander = Commander(self._provider_locator, chat_id)
+		if (user_id == chat_id):
+			# User write direct message to bot
+			my_key = commander.auth_mykey(user_id)
+			context.bot.send_message(chat_id = update.effective_chat.id, text = "Used key:\n%s" % my_key)
+
 	def _start(self, update: Update, context: CallbackContext) -> None:
 		context.bot.send_message(chat_id=update.effective_chat.id, text="I'm a CEX Pay Support Bot, please talk to me!")
 
-	# def _message(self, update: Update, context: CallbackContext) -> None:
-	# 	context.bot.send_message(chat_id=update.effective_chat.id, text=update.message.text)
+	def _message(self, update: Update, context: CallbackContext) -> None:
+		user_id = update.effective_user.id
+		chat_id = update.effective_chat.id
+		commander = Commander(self._provider_locator, chat_id)
+		if (user_id == chat_id):
+			# User write direct message to bot
+			commander.auth_talker(user_id).write_answer(update.message.text)
+			next_question = commander.auth_talker(user_id).next_question()
+			if (next_question != None):
+				context.bot.send_message(chat_id = update.effective_chat.id, text = next_question)
+			else:
+				context.bot.send_message(chat_id = update.effective_chat.id, text = "Done")
+		else:
+			context.bot.send_message(chat_id=update.effective_chat.id, text=update.message.text)
 
 	def _order(self, update: Update, context: CallbackContext) -> None:
+		chat_id = update.effective_chat.id
+		commander = Commander(self._provider_locator, chat_id)
 		try:
+			commander = Commander(self._provider_locator, update.effective_chat.id)
 			message = update.message
 			bot_name = message.bot.name
 			text = message.text
@@ -96,8 +155,7 @@ class TelegramBot:
 				if not command.endswith(bot_name):
 					return
 			
-			bot_order: BotOrder = self._commander.order(variant_order_identifier = variant_order_identifier)
-
+			bot_order: BotOrder = commander.order_status(variant_order_identifier = variant_order_identifier)
 			render_context: dict = {
 				"input": _TelegramMarkdownWrap(variant_order_identifier),
 				"order": _TelegramMarkdownWrap(bot_order),
@@ -122,6 +180,7 @@ class TelegramBot:
 
 	def _address(self, update: Update, context: CallbackContext) -> None:
 		try:
+			commander = Commander(self._provider_locator, update.effective_chat.id)
 			message = update.message
 			bot_name = message.bot.name
 			text = message.text
@@ -134,7 +193,7 @@ class TelegramBot:
 				if not command.endswith(bot_name):
 					return
 			
-			order_ids: list = self._commander.address(variant_address = variant_address)
+			order_ids: list = commander.address(variant_address = variant_address)
 
 			render_context: dict = {
 				"input": _TelegramMarkdownWrap(variant_address),
@@ -160,6 +219,7 @@ class TelegramBot:
 
 	def _transaction(self, update: Update, context: CallbackContext) -> None:
 		try:
+			commander = Commander(self._provider_locator, update.effective_chat.id)
 			message = update.message
 			bot_name = message.bot.name
 			text = message.text
@@ -172,7 +232,7 @@ class TelegramBot:
 				if not command.endswith(bot_name):
 					return
 			
-			order_ids: list = self._commander.transaction(variant_tx = variant_tx)
+			order_ids: list = commander.transaction(variant_tx = variant_tx)
 
 			render_context: dict = {
 				"input": _TelegramMarkdownWrap(variant_tx),

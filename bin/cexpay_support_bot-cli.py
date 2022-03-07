@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 #
 
-from argparse import ArgumentParser
-from os import getpid, environ
+from distutils.command.config import config
+from os import environ
 from sys import stderr
-from time import sleep
 import logging
 from typing import Optional, Union
 from typing_extensions import NoReturn
@@ -13,39 +12,45 @@ from urllib.parse import ParseResult, urlparse
 
 from cexpay_support_bot.commander import Commander
 from cexpay_support_bot.bots.telegram.telegram_bot import TelegramBot
+from cexpay_support_bot.config_provider import ConfigProvider
+from cexpay_support_bot.dbfacade.dbfacade import DbFacade
+from cexpay_support_bot.provider_locator import ProviderLocator
 
 
 def main(
-	cexpay_api_key: str,
-	cexpay_api_passphrase: str,
-	cexpay_api_secret: str,
 	bot_telegram_token: str,
 	telegram_explicit_bot_name: bool,
+	mongo_connection_uri: str,
 	cexpay_api_url: Optional[str],
 	cexpay_api_ca_cert_file: Optional[str],
 	allowed_chats: list[str],
 	cexpay_board_url: ParseResult
 ):
 	logging.basicConfig(stream=stderr)
-
 	main_logger: logging.Logger = logging.getLogger("main")
 	main_logger.setLevel(logging.DEBUG)
+
+	provider_locator = ProviderLocator.getDefault()
+
+	config_provider = ConfigProvider()
+	config_provider.allowed_chats = allowed_chats
+	config_provider.bot_telegram_token = bot_telegram_token
+	config_provider.cexapi_url = cexpay_api_url
+	config_provider.cexpay_api_ca_cert_file = cexpay_api_ca_cert_file
+	config_provider.mongo_connection_string = mongo_connection_uri
+	config_provider.telegram_explicit_bot_name = telegram_explicit_bot_name
+
+	provider_locator.register(ConfigProvider, config_provider)
+	provider_locator.register(logging.Logger, main_logger)
+	provider_locator.register(DbFacade, DbFacade(mongo_connection_uri, main_logger))
 
 	main_logger.info("Application starting ...")
 
 	try:
 		main_logger.info("Creating Commander ...")
-		with Commander(
-				cexpay_api_key=cexpay_api_key,
-				cexpay_api_passphrase=cexpay_api_passphrase,
-				cexpay_api_secret=cexpay_api_secret,
-				cexpay_api_url=cexpay_api_url,
-				cexpay_api_ca_cert_file = cexpay_api_ca_cert_file
-		) as commander:
-
-			with TelegramBot(commander, bot_telegram_token, telegram_explicit_bot_name, allowed_chats, cexpay_board_url) as telegram_bot:
-				main_logger.info("Entering main loop ...")
-				telegram_bot.idle()
+		with TelegramBot(provider_locator) as telegram_bot:
+			main_logger.info("Entering main loop ...")
+			telegram_bot.idle()
 
 	except Exception as ex:
 		# TODO
@@ -67,15 +72,15 @@ def _get_environ_variable(name: str, exit_code: int) -> Union[str, NoReturn]:
 if __name__ == "__main__":
 	import sys
 
-	cexpay_api_key = _get_environ_variable('CEXPAY_API_KEY', 1)
-	cexpay_api_passphrase = _get_environ_variable('CEXPAY_API_PASSPHRASE', 2)
-	cexpay_api_secret = _get_environ_variable('CEXPAY_API_SECRET', 3)
 	cexpay_api_url = environ.get('CEXPAY_API_URL', "https://api.cexpay.io/")
 	cexpay_api_ca_cert_file = environ.get('CEXPAY_API_CA_CERTIFICATE_FILE', None)
 	cexpay_board_url = urlparse(environ.get('CEXPAY_BOARD_URL', "https://board.cexpay.io/"))
 	bot_telegram_token = _get_environ_variable('BOT_TELEGRAM_TOKEN', 4)
 	allowed_chats_str = _get_environ_variable('BOT_TELEGRAM_ALLOWED_CHATS', 5)
 	allowed_chats = allowed_chats_str.split(',')
+	if (allowed_chats.count == 0):
+		print("A required environment variable BOT_TELEGRAM_ALLOWED_CHATS is not set.", file=sys.stderr)
+		sys.exit(8)
 
 	telegram_explicit_bot_name_raw = _get_environ_variable('BOT_TELEGRAM_EXPLICIT_NAME', 6)
 	telegram_explicit_bot_name: bool
@@ -87,9 +92,8 @@ if __name__ == "__main__":
 		print("A allowed value for environment variable 'BOT_TELEGRAM_EXPLICIT_NAME' is not 'yes'/'no'. '%s' wrong value" % telegram_explicit_bot_name_raw, file=sys.stderr)
 		sys.exit(7)
 
-	if (allowed_chats.count == 0):
-		print("A required environment variable ALLOWED_CHATS is not set.", file=sys.stderr)
-		sys.exit(8)
+	mongo_connection_str = _get_environ_variable("MONGO_CONNECTION_STRING", 9)
+	mongo_connection_uri = urlparse(mongo_connection_str)
 
 	# launch application loop
-	main(cexpay_api_key, cexpay_api_passphrase, cexpay_api_secret, bot_telegram_token, telegram_explicit_bot_name, cexpay_api_url, cexpay_api_ca_cert_file, allowed_chats, cexpay_board_url)
+	main(bot_telegram_token, telegram_explicit_bot_name, mongo_connection_uri, cexpay_api_url, cexpay_api_ca_cert_file, allowed_chats, cexpay_board_url)
