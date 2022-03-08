@@ -4,7 +4,7 @@ from telegram import ParseMode, Update
 from telegram.ext import CallbackContext, CommandHandler, Filters, Handler, MessageHandler, Updater
 
 from cexpay_support_bot.bots.utils import render_message
-from cexpay_support_bot.commander import Commander, ExplanedOrder
+from cexpay_support_bot.commander import Commander
 from cexpay_support_bot.model.bot_order import BotOrder
 from cexpay_support_bot.utils import read_json_templates
 
@@ -32,6 +32,12 @@ class TelegramBot:
 
 		status_handler = CommandHandler('order', self._verify_permission(self._order, self._allowed_chats))
 		self._updater.dispatcher.add_handler(status_handler)
+
+		orders_handler_by_tx = CommandHandler('transaction', self._verify_permission(self._order_by_tx, self._allowed_chats))
+		self._updater.dispatcher.add_handler(orders_handler_by_tx)
+
+		orders_handler_by_address = CommandHandler('address', self._verify_permission(self._order_by_address, self._allowed_chats))
+		self._updater.dispatcher.add_handler(orders_handler_by_address)
 
 		echo_handler = MessageHandler(Filters.text & (~Filters.command), self._message)
 		self._updater.dispatcher.add_handler(echo_handler)
@@ -71,8 +77,79 @@ class TelegramBot:
 					return
 			
 			bot_order: BotOrder = self._commander.order_status(variant_order_identifier = variant_order_identifier)
+			repsonse_data = "\n".join(bot_orders)
 			render_context: dict = {
-				"text_data": bot_order.explain_order
+				"text_data": repsonse_data
+			}
+
+			response_text: str = render_message(__name__, "order-accepted.mustache.txt", render_context)
+
+			context.bot.send_message(
+				chat_id = update.effective_chat.id,
+				reply_to_message_id = message.message_id,
+				text = response_text,
+				parse_mode = ParseMode.MARKDOWN
+			)
+		except Exception as ex:
+			context.bot.send_message(
+				chat_id = update.effective_chat.id,
+				reply_to_message_id = message.message_id,
+				text = str(ex)
+			)
+		pass
+
+	def _order_by_address(self, update: Update, context: CallbackContext) -> None:
+		try:
+			message = update.message
+			bot_name = message.bot.name
+			text = message.text
+
+			args = text.split(" ")
+			command = args[0]
+			variant_address = args[1]
+
+			if (self._telegram_explicit_bot_name == True):
+				if not command.endswith(bot_name):
+					return
+			
+			bot_orders: list = self._commander.order_status_by_address(variant_address = variant_address)
+			repsonse_data = "\n".join(bot_orders)
+			render_context: dict = {
+				"text_data": repsonse_data
+			}
+			response_text: str = render_message(__name__, "order-accepted.mustache.txt", render_context)
+
+			context.bot.send_message(
+				chat_id = update.effective_chat.id,
+				reply_to_message_id = message.message_id,
+				text = response_text,
+				parse_mode = ParseMode.MARKDOWN
+			)
+		except Exception as ex:
+			context.bot.send_message(
+				chat_id = update.effective_chat.id,
+				reply_to_message_id = message.message_id,
+				text = str(ex)
+			)
+		pass
+
+	def _order_by_tx(self, update: Update, context: CallbackContext) -> None:
+		try:
+			message = update.message
+			bot_name = message.bot.name
+			text = message.text
+
+			args = text.split(" ")
+			command = args[0]
+			variant_order_tx = args[1]
+
+			if (self._telegram_explicit_bot_name == True):
+				if not command.endswith(bot_name):
+					return
+			
+			bot_orders: list = self._commander.order_status_by_tx(variant_order_tx = variant_order_tx)
+			render_context: dict = {
+				"text_data": bot_orders
 			}
 			response_text: str = render_message(__name__, "order-accepted.mustache.txt", render_context)
 
