@@ -1,0 +1,15 @@
+Коллеги,
+
+По запрошенному идентификатору `{{ input }}`, найден следующий ордер...
+
+Order ID: [{{ order.orderId }}]({{ orderReferenceUrl }})
+Client Order ID: {{ order.clientOrderId }}
+Client Order Tag: {{ order.clientOrderTag }}
+Processing Status: {{ order.status }}
+Processing State: {{ order.state }}
+Paid Status: {{ order.paidStatus }}
+Deposit Address: [{{ order.depositAddress }}]({{ order.depositAddressExplorerUrl }})
+{{#order.depositTransactions}}Deposit Transaction: {{ amount }} [{{ tx_hash }}]({{ tx_explorer_url }})
+{{/order.depositTransactions}}
+
+{{ order.explain }}

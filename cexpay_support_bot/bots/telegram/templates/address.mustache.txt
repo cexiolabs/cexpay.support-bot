@@ -1,0 +1,7 @@
+Коллеги,
+
+По запрошенному адресу `{{ input }}`, {{#isUsed}}найдены следующие ордера:{{/isUsed}}{{^isUsed}}отсутвуют связанные ордера.{{/isUsed}}
+
+{{#orders}}
+• [{{ orderId }}]({{ orderReferenceUrl }})
+{{/orders}}

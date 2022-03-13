@@ -1,11 +1,12 @@
 from pathlib import Path
+from typing import Any
 from chevron import render
 import pkgutil
 
-def render_message(package: str, template_name: str, data_context: dict) -> str:
+def render_message(package: str, template_name: str, data_context: Any) -> str:
 	assert isinstance(package, str)
 	assert isinstance(template_name, str)
-	assert isinstance(data_context, dict)
+	# assert isinstance(data_context, dict)
 
 	templates_directory_path: Path = Path("templates")
 	template_path: Path = templates_directory_path.joinpath(template_name)

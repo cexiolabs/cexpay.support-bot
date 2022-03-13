@@ -10,7 +10,7 @@
 			"request": "launch",
 			"cwd": "${workspaceFolder}",
 			"env": {
-				"PYTHONPATH": "${workspaceFolder}"
+				"PYTHONPATH": "${workspaceFolder}/../client.python:${workspaceFolder}"
 			},
 			"envFile": "${workspaceFolder}/.env",
 			"program": "${workspaceFolder}/bin/cexpay_support_bot-cli.py",

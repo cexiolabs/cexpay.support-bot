@@ -12,7 +12,8 @@ class Commander:
 		cexpay_api_key: str,
 		cexpay_api_passphrase: str,
 		cexpay_api_secret: str,
-		cexpay_api_url: Optional[str]
+		cexpay_api_url: Optional[str],
+		cexpay_api_ca_cert_file: Optional[str]
 	) -> None:
 		assert isinstance(cexpay_api_key, str)
 		assert isinstance(cexpay_api_passphrase, str)
@@ -22,7 +23,8 @@ class Commander:
 			key = cexpay_api_key,
 			passphrase = cexpay_api_passphrase,
 			secret = cexpay_api_secret,
-			url = cexpay_api_url
+			url = cexpay_api_url,
+			ssl_ca_cert=cexpay_api_ca_cert_file
 		)
 		pass
 
@@ -34,35 +36,20 @@ class Commander:
 		# TODO
 		pass
 
-
-	def order_status(self, variant_order_identifier: str) -> BotOrder:
-
-		# TODO: implement method
-
+	def order(self, variant_order_identifier: str) -> BotOrder:
 		order: Order = self._cexpay_api_client.order_fetch(
 			order_id = variant_order_identifier
 		)
+		return BotOrder(order)
 
-		return BotOrder(
-			order_id = order.order_id,
-			client_order_id = order.client_order_id,
-			client_order_tag = order.client_order_tag,
-			status = order.status,
-			state = order.state,
-			paid_amount = order.deposit["paidAmount"],
-			paid_status = order.paid_status,
-			deposit_address = order.deposit["address"],
-			deposit_address_expolorer_url = order.deposit["addressExplorerUrl"],
-		)
-
-	def order_status_by_address(self, variant_address: str) -> BotOrder:
-		orders: list = self._cexpay_api_client.order_fetch_by_address(
+	def address(self, variant_address: str) -> list[str]:
+		order_ids: list[str] = self._cexpay_api_client.order_fetch_by_address(
 			address = variant_address
 		)
-		return orders
+		return order_ids
 
-	def order_status_by_tx(self, variant_order_tx: str) -> BotOrder:
-		orders: list = self._cexpay_api_client.order_fetch_by_tx(
-			order_tx = variant_order_tx
+	def transaction(self, variant_tx: str) -> list[str]:
+		order_ids: list[str] = self._cexpay_api_client.order_fetch_by_tx(
+			order_tx = variant_tx
 		)
-		return orders
+		return order_ids

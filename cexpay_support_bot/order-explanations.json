@@ -1,8 +1,29 @@
 {
-	"REJECTED:EXCHANGING:PAID": {
-		"en": "Коллеги,\n\nПо запрошенному идентификатору: `{{ input }}`\n\nНайден следующий ордер...\n\nOrder ID: [{{ order_id }}](https://board.cexpay.io/yong/order/{{ order_id }})\nClient Order ID: {{ client_order_id }}\nClient Order Tag: {{ client_order_tag }}\nProcessing Status: {{ status }}\nProcessing Phase: {{ state }}\nPaid Status: {{ paid_status }}\nDeposit Address: [{{ deposit_address }}]({{ deposit_address_expolorer_url }})"
+	"STATUS_REJECTED:STATE_AWAIT_DEPOSIT:PAID_NONE": {
+		"ru": "Транзакций с оплатой не обнаружено.\n\nОрдер отклонен.\nЕсли имеются сомнения, для дальнейшего разбирательства, получите от клиента идентификтор транзакции."
+	},
+	"STATUS_REJECTED:STATE_AWAIT_DEPOSIT:PAID_PARTLY": {
+		"ru": "По данному ордеру получена частичная оплата: {{ paidAmount }} из {{ fromAmount }} {{ fromCurrency }}.\n\nОрдер отклонен."
+	},
+	"STATUS_REJECTED:STATE_AWAIT_DEPOSIT:PAID_EXACT": {
+		"ru": "По данному ордеру получена оплата в требуемом объеме: {{ paidAmount }} из {{ fromAmount }} {{ fromCurrency }} в {{ paidAt }}.\nНо оплата получена слишком поздно, после того как ордер стал просрочен(expired).\n\nОрдер отклонен.\n\n{{ createdAt }} - создан\n{{ updatedAt }} - просрочен\n{{ paidAt }} - оплачен"
+	},
+	"STATUS_REJECTED:STATE_AWAIT_DEPOSIT:PAID_OVER": {
+		"ru": "По данному ордеру получена оплата в объеме больше допустимого: {{ paidAmount }} из {{ fromAmount }} {{ fromCurrency }} в {{ paidAt }}.\n\nОрдер отклонен."
+	},
+	"STATUS_PENDING:STATE_AWAIT_DEPOSIT:PAID_NONE": {
+		"ru": "По данному ордеру ожидается оплата {{ depositRemainAmount }} {{ fromCurrency }} до {{ expiredAt }}.\n\nНа данный момент оплаты не поступало."
+	},
+	"STATUS_PENDING:STATE_AWAIT_DEPOSIT:PAID_PARTLY": {
+		"ru": "По данному ордеру произведена частичная оплата в сумме {{ paidAmount }} из {{ fromAmount }} {{ fromCurrency }}.\n\nОжидается доплата {{ depositRemainAmount }} {{ fromCurrency }} до {{ expiredAt }}."
+	},
+	"STATUS_PENDING:STATE_AWAIT_DEPOSIT:PAID_EXACT": {
+		"ru": "По данному ордеру получена оплата в требуемом объеме: {{ paidAmount }} из {{ fromAmount }} {{ fromCurrency }} в {{ paidAt }}.\nНо оплата еще не подтвреждена блокчейном.\n\nОжидаем подтверждения сети..."
+	},
+	"STATUS_ACCEPTED:STATE_COMPLETED:PAID_EXACT": {
+		"ru": "По данному ордеру получена оплата в требуемом объеме: {{ paidAmount }} из {{ fromAmount }} {{ fromCurrency }}.\n\nОрдер успешно выполнен."
 	},
 	"DEFAULT": {
-		"en": "Коллеги,\n\nПо запрошенному идентификатору: `{{ input }}`\n\nНайден следующий ордер...\n\nOrder ID: [{{ order_id }}](https://board.cexpay.io/yong/order/{{ order_id }})\nClient Order ID: {{ client_order_id }}\nClient Order Tag: {{ client_order_tag }}\nProcessing Status: {{ status }}\nProcessing Phase: {{ state }}\nPaid Status: {{ paid_status }}\nDeposit Address: [{{ deposit_address }}]({{ deposit_address_expolorer_url }})"
+		"ru": "Детальное объяснение по ордеру отсутствует."
 	}
 }
