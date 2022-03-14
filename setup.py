@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name='cexpay',
-    version='2.0.2',
+    version='2.0.3',
     description="A support bot for CEX Pay's products. See more https://developers.cexpay.io/.",
     long_description=long_description,
     long_description_content_type="text/markdown",

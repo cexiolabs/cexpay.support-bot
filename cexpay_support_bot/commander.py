@@ -2,7 +2,7 @@ import json
 import os
 from typing import Optional
 
-from cexpay.api.v2 import ApiV2, Order
+from cexpay.api.v2 import ApiV2, NotFoundException, Order
 
 from cexpay_support_bot.model.bot_order import BotOrder
 
@@ -37,19 +37,30 @@ class Commander:
 		pass
 
 	def order(self, variant_order_identifier: str) -> BotOrder:
-		order: Order = self._cexpay_api_client.order_fetch(
-			order_id = variant_order_identifier
-		)
-		return BotOrder(order)
+		try:
+			order: Order = self._cexpay_api_client.order_fetch(
+				order_id = variant_order_identifier,
+				use_merchant_family = True
+			)
+			return BotOrder(order)
+		except NotFoundException as e:
+			# Look like 'variant_order_identifier' is a client order identifier
+			order: Order = self._cexpay_api_client.order_fetch_by_client_id(
+				client_order_id = variant_order_identifier,
+				use_merchant_family = True
+			)
+			return BotOrder(order)
 
 	def address(self, variant_address: str) -> list[str]:
 		order_ids: list[str] = self._cexpay_api_client.order_fetch_by_address(
-			address = variant_address
+			address = variant_address,
+			use_merchant_family = True
 		)
 		return order_ids
 
 	def transaction(self, variant_tx: str) -> list[str]:
 		order_ids: list[str] = self._cexpay_api_client.order_fetch_by_tx(
-			order_tx = variant_tx
+			order_tx = variant_tx,
+			use_merchant_family = True
 		)
 		return order_ids
