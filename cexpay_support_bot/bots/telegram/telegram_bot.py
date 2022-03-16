@@ -54,9 +54,6 @@ class TelegramBot:
 		start_handler = CommandHandler('start', self._start)
 		self._updater.dispatcher.add_handler(start_handler)
 
-		caps_handler = CommandHandler('caps', self._caps)
-		self._updater.dispatcher.add_handler(caps_handler)
-
 		status_handler = CommandHandler('order', self._authorize(self._order, self._allowed_chats))
 		self._updater.dispatcher.add_handler(status_handler)
 
@@ -66,8 +63,8 @@ class TelegramBot:
 		orders_handler_by_address = CommandHandler('address', self._authorize(self._address, self._allowed_chats))
 		self._updater.dispatcher.add_handler(orders_handler_by_address)
 
-		echo_handler = MessageHandler(Filters.text & (~Filters.command), self._message)
-		self._updater.dispatcher.add_handler(echo_handler)
+		# echo_handler = MessageHandler(Filters.text & (~Filters.command), self._message)
+		# self._updater.dispatcher.add_handler(echo_handler)
 
 		return self
 
@@ -82,12 +79,8 @@ class TelegramBot:
 	def _start(self, update: Update, context: CallbackContext) -> None:
 		context.bot.send_message(chat_id=update.effective_chat.id, text="I'm a CEX Pay Support Bot, please talk to me!")
 
-	def _caps(self, update: Update, context: CallbackContext) -> None:
-		text_caps = ' '.join(context.args).upper()
-		context.bot.send_message(chat_id=update.effective_chat.id, text=text_caps)
-
-	def _message(self, update: Update, context: CallbackContext) -> None:
-		context.bot.send_message(chat_id=update.effective_chat.id, text=update.message.text)
+	# def _message(self, update: Update, context: CallbackContext) -> None:
+	# 	context.bot.send_message(chat_id=update.effective_chat.id, text=update.message.text)
 
 	def _order(self, update: Update, context: CallbackContext) -> None:
 		try:
@@ -202,7 +195,6 @@ class TelegramBot:
 				text = str(ex)
 			)
 		pass
-
 
 	def _authorize(self, handler: Handler, allowed_chats: list[str]) -> Handler:
 
