@@ -1,7 +1,8 @@
+from contextvars import copy_context
 from urllib.parse import quote, ParseResult
 from chevron import render
-from telegram import Chat, Message, ParseMode, Update
-from telegram.ext import CallbackContext, CommandHandler, Filters, Handler, MessageHandler, Updater
+from telegram import Chat, KeyboardButton, Message, ParseMode, ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
+from telegram.ext import CallbackContext, CommandHandler, Filters, Handler, MessageHandler, Updater, ConversationHandler
 from telegram.utils.helpers import escape_markdown
 
 from cexpay_support_bot.bots.utils import render_message
@@ -48,8 +49,85 @@ class TelegramBot:
 		self._cexpay_board_url = cexpay_board_url
 		pass
 
+	def _return_start(self, update: Update, context: CallbackContext) -> int:
+		try:
+			message = update.message
+			bot_name = message.bot.name
+			text = message.text
+			user_id = message.from_user.id
+
+			args = text.split(" ")
+			command = args[0]
+			variant_order_identifier = args[1]
+
+			if (self._telegram_explicit_bot_name == True):
+				if not command.endswith(bot_name):
+					return
+			
+			bot_order: BotOrder = self._commander.order(variant_order_identifier = variant_order_identifier)
+
+			deposits_str = "Согласно ордера %s есть следующие депозиты:" % variant_order_identifier
+			deposits = list()
+			for depositTransaction in bot_order.depositTransactions:
+				deposits_str = "%s\n%s - %s %s" % (deposits_str, depositTransaction.tx_hash, depositTransaction.amount, bot_order.fromCurrency)
+				deposits.append(depositTransaction.tx_hash)
+
+			context.user_data["deposit_return"] = dict()
+			context.user_data["deposit_return"]["bot_order"] = bot_order
+			keyboard = ReplyKeyboardMarkup([deposits], resize_keyboard=True)
+			self._updater.bot.send_message(chat_id=user_id, text=deposits_str, reply_markup=keyboard)
+		except Exception as ex:
+			context.bot.send_message(
+				chat_id = update.effective_chat.id,
+				reply_to_message_id = message.message_id,
+				text = str(ex)
+			)
+		pass
+		return 1
+
+	def _return_request_address(self, update: Update, context: CallbackContext) -> int:
+		message = update.message
+		user_id = message.from_user.id
+		tx_hash = message.text
+		keyboard = ReplyKeyboardRemove()
+		
+		context.user_data["deposit_return"]["tx_hash"] = tx_hash
+		self._updater.bot.send_message(chat_id=user_id, text="Enter return address", reply_markup=keyboard)
+		return 2
+
+	def _return_save_address(self, update: Update, context: CallbackContext) -> None:
+		message = update.message
+		user_id = message.from_user.id
+		return_address = message.text
+		context.user_data["deposit_return"]["return_address"] = return_address
+		bot_order = context.user_data["deposit_return"]["bot_order"]
+		deposit_address = bot_order.depositAddress
+		tx_hash = context.user_data["deposit_return"]["tx_hash"]
+		deposit = list(filter(lambda el: el.tx_hash == tx_hash, bot_order.depositTransactions))[0]
+		deposit_amount = deposit.amount
+		deposit_currency = bot_order.fromCurrency
+
+		order_id = bot_order.orderId
+		client_order_id = bot_order.clientOrderId
+		return_str = """Ордер: %s / %s\nАдрес депозита: %s\nХеш депозита: %s\nСумма депозита: %s %s\nАдрес возврата: %s\n\nПринят к возврату.""" % (order_id, client_order_id, deposit_address, tx_hash, deposit_amount, deposit_currency, return_address)
+		self._updater.bot.send_message(chat_id=user_id, text=return_str)
+		return ConversationHandler.END
+
+	def _return_cancel(self, update: Update, context: CallbackContext) -> None:
+		update.message.reply_text("Returning end")
+		return ConversationHandler.END
+
 	def __enter__(self):
 		self._updater = Updater(token=self._telegram_token)
+
+		return_conv_handler = ConversationHandler(
+			entry_points= [CommandHandler('return', self._return_start)],
+			states={
+				1: [MessageHandler(Filters.text, self._return_request_address, pass_user_data=True)],
+				2: [MessageHandler(Filters.text, self._return_save_address, pass_user_data=True)]
+			},
+			fallbacks=[CommandHandler("return_cancel", self._return_cancel)]
+		)
 		
 		start_handler = CommandHandler('start', self._start)
 		self._updater.dispatcher.add_handler(start_handler)
@@ -63,6 +141,7 @@ class TelegramBot:
 		orders_handler_by_address = CommandHandler('address', self._authorize(self._address, self._allowed_chats))
 		self._updater.dispatcher.add_handler(orders_handler_by_address)
 
+		self._updater.dispatcher.add_handler(return_conv_handler)
 		# echo_handler = MessageHandler(Filters.text & (~Filters.command), self._message)
 		# self._updater.dispatcher.add_handler(echo_handler)
 
