@@ -1,5 +1,5 @@
 from urllib.parse import quote, ParseResult
-from telegram import Chat, Message, ParseMode, Update
+from telegram import Chat, Message, ParseMode, ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
 from telegram.ext import CallbackContext, CommandHandler, Filters, Handler, MessageHandler, Updater
 from telegram.utils.helpers import escape_markdown
 
@@ -8,6 +8,7 @@ from cexpay_support_bot.commander import Commander
 from cexpay_support_bot.config_provider import ConfigProvider
 from cexpay_support_bot.model.bot_order import BotOrder
 from cexpay_support_bot.provider_locator import ProviderLocator
+from cexpay_support_bot.return_deposit_talker import ReturnDepositTalker
 
 class _TelegramMarkdownWrap:
 	def __init__(self, wrap) -> None:
@@ -73,8 +74,11 @@ class TelegramBot:
 		orders_handler_by_address = CommandHandler('address', self._authorize(self._address, self._allowed_chats))
 		self._updater.dispatcher.add_handler(orders_handler_by_address)
 
-		# echo_handler = MessageHandler(Filters.text & (~Filters.command), self._message)
-		# self._updater.dispatcher.add_handler(echo_handler)
+		orders_handler_by_address = CommandHandler('return', self._authorize(self._return_deposit_start, self._allowed_chats))
+		self._updater.dispatcher.add_handler(orders_handler_by_address)
+
+		message_handler = MessageHandler(Filters.text & (~Filters.command), self._message)
+		self._updater.dispatcher.add_handler(message_handler)
 
 		return self
 
@@ -90,7 +94,7 @@ class TelegramBot:
 		user_id = update.effective_user.id
 		chat_id = update.effective_chat.id
 		commander = Commander(self._provider_locator, chat_id)
-		commander.auth_save(user_id, chat_id)
+		commander.auth_start(user_id, chat_id)
 		if (user_id == chat_id):
 			# User write direct message to bot
 			next_question = commander.auth_talker(user_id).next_question()
@@ -129,18 +133,47 @@ class TelegramBot:
 		commander = Commander(self._provider_locator, chat_id)
 		if (user_id == chat_id):
 			# User write direct message to bot
-			commander.auth_talker(user_id).write_answer(update.message.text)
-			next_question = commander.auth_talker(user_id).next_question()
-			if (next_question != None):
-				context.bot.send_message(chat_id = update.effective_chat.id, text = next_question)
+			talker = commander.talker(user_id)
+			talker.write_answer(update.message.text)
+			next_question = talker.next_question()
+			if next_question == "return_address":
+				keyboard = ReplyKeyboardRemove()
+				context.bot.send_message(chat_id = update.effective_chat.id, text = next_question, reply_markup = keyboard)
 			else:
-				context.bot.send_message(chat_id = update.effective_chat.id, text = "Done")
+				if (next_question != None):
+					context.bot.send_message(chat_id = update.effective_chat.id, text = next_question)
+				else: 
+					# Если выяснены все данные по Return Deposit
+					if type(talker) == ReturnDepositTalker:
+						
+						return_status = talker.status()
+						order_id = return_status["order_id"]
+						friendly_chat_id = return_status["chat_id"]
+						friendly_commander = Commander(self._provider_locator, friendly_chat_id)
+						bot_order: BotOrder = friendly_commander.order(variant_order_identifier = order_id)
+						deposit = list(filter(lambda el: el.tx_hash == return_status["deposit_hash"], bot_order.depositTransactions))[0]
+						return_address = return_status["return_address"]
+						currency = bot_order.fromCurrency
+
+						return_deposit = friendly_commander.return_deposit(order_id, deposit.deposit_id, return_address, currency)
+
+						return_str = """Ордер: %s / %s\nВозврат: %s\nАдрес депозита: %s\nХеш депозита: %s\nСумма депозита: %s %s\nАдрес возврата: %s\n\nПринят к возврату.""" % (order_id, bot_order.clientOrderId, return_deposit.return_id ,bot_order.depositAddress, return_status["deposit_hash"], deposit.amount, currency, return_address)
+						
+						context.bot.send_message(chat_id = update.effective_chat.id, text = return_str)
+						context.bot.send_message(
+							chat_id = friendly_chat_id,
+							reply_to_message_id = return_status["message_id"],
+							text = return_str,
+							parse_mode = ParseMode.MARKDOWN
+						)
+						
+						talker.cancel()
+					else:
+						context.bot.send_message(chat_id = update.effective_chat.id, text = "Done")
 		else:
 			context.bot.send_message(chat_id=update.effective_chat.id, text=update.message.text)
 
 	def _order(self, update: Update, context: CallbackContext) -> None:
-		chat_id = update.effective_chat.id
-		commander = Commander(self._provider_locator, chat_id)
 		try:
 			commander = Commander(self._provider_locator, update.effective_chat.id)
 			message = update.message
@@ -155,7 +188,7 @@ class TelegramBot:
 				if not command.endswith(bot_name):
 					return
 			
-			bot_order: BotOrder = commander.order_status(variant_order_identifier = variant_order_identifier)
+			bot_order: BotOrder = commander.order(variant_order_identifier = variant_order_identifier)
 			render_context: dict = {
 				"input": _TelegramMarkdownWrap(variant_order_identifier),
 				"order": _TelegramMarkdownWrap(bot_order),
@@ -255,6 +288,55 @@ class TelegramBot:
 				text = str(ex)
 			)
 		pass
+
+	def _return_deposit_start(self, update: Update, context: CallbackContext) -> None:
+		try:
+			user_id = update.effective_user.id
+			chat_id = update.effective_chat.id
+			message = update.message
+			bot_name = message.bot.name
+			args = message.text.split(" ")
+			command = args[0]
+			variant_order_identifier = args[1]
+			commander = Commander(self._provider_locator, chat_id)
+
+			if (self._telegram_explicit_bot_name == True):
+				if not command.endswith(bot_name):
+					return
+
+			if (user_id == chat_id):
+				# User write direct message to bot
+				context.bot.send_message(
+				reply_to_message_id = update.message.message_id,
+					chat_id = update.effective_chat.id,
+					text = "Сначала начните возврат в общем чате /return CPO-xxx")
+			else:
+				# User write message to bot in public chat
+				talker = commander.get_talker(ReturnDepositTalker, user_id)
+				talker.cancel()
+				talker.start(chat_id)
+				talker.write_answer(message.message_id)
+				bot_order: BotOrder = commander.order(variant_order_identifier = variant_order_identifier)
+				talker.write_answer(variant_order_identifier)
+
+				deposits_str = "Согласно ордера %s есть следующие депозиты:" % variant_order_identifier
+				deposits = list()
+				for depositTransaction in bot_order.depositTransactions:
+					deposits_str = "%s\n%s - %s %s" % (deposits_str, depositTransaction.tx_hash, depositTransaction.amount, bot_order.fromCurrency)
+					deposits.append([depositTransaction.tx_hash])
+
+				context.user_data["deposit_return"] = dict()
+				context.user_data["deposit_return"]["bot_order"] = bot_order
+				keyboard = ReplyKeyboardMarkup(deposits, resize_keyboard=True)
+				context.bot.send_message(chat_id=user_id, text=deposits_str, reply_markup=keyboard)
+		except Exception as ex:
+			context.bot.send_message(
+				chat_id = update.effective_chat.id,
+				reply_to_message_id = message.message_id,
+				text = str(ex)
+			)
+		pass
+
 
 	def _authorize(self, handler: Handler, allowed_chats: list[str]) -> Handler:
 

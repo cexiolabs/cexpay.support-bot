@@ -6,6 +6,7 @@ from pymongo import MongoClient
 
 class DbFacade:
 	AUTH_COLLECTION = "auth"
+	RETURN_DEPOSIT_COLLECTION = "return_deposit"
 
 	def __init__(self, mongo_connection_uri: ParseResult, main_logger: logging.Logger) -> None:
 		uri = "%s://%s:%s@%s" % (mongo_connection_uri.scheme, mongo_connection_uri.username,
@@ -48,3 +49,26 @@ class DbFacade:
 	def auth_cancel(self, user_id: int) -> None:
 		collection = self._db[self.AUTH_COLLECTION]
 		collection.delete_one({"user_id": user_id})
+
+	def add_return_deposit_request(self, user_id: int, chat_id: int) -> None:
+		collection = self._db[self.RETURN_DEPOSIT_COLLECTION]
+		user_state: dict = self.return_deposit_state(user_id)
+		if (user_state == None):
+			collection.insert_one(
+				{"user_id": user_id, "chat_id": chat_id, "created_at": datetime.datetime.utcnow()})
+
+	def return_deposit_state(self, user_id: int) -> dict:
+		collection = self._db[self.RETURN_DEPOSIT_COLLECTION]
+		auth_state: dict = collection.find_one({"user_id": user_id})
+		return auth_state
+
+	def set_return_deposit_state(self, user_id: int, key: str, value: str) -> None:
+		collection = self._db[self.RETURN_DEPOSIT_COLLECTION]
+		user_state: dict = self.return_deposit_state(user_id)
+		if (user_state != None):
+			collection.find_one_and_update({"user_id": user_id}, {"$set": {key: value}})
+
+	def return_deposit_cancel(self, user_id: int) -> None:
+		collection = self._db[self.RETURN_DEPOSIT_COLLECTION]
+		collection.delete_one({"user_id": user_id})
+
