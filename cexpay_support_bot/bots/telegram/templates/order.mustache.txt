@@ -5,11 +5,12 @@
 Order ID: [{{ order.orderId }}]({{ orderReferenceUrl }})
 Client Order ID: {{ order.clientOrderId }}
 Client Order Tag: {{ order.clientOrderTag }}
+Commitment: {{ order.fromAmount }} {{ order.fromCurrency }} -> {{ order.toAmount }} {{ order.toCurrency }}
 Processing Status: {{ order.status }}
 Processing State: {{ order.state }}
 Paid Status: {{ order.paidStatus }}
 Deposit Address: [{{ order.depositAddress }}]({{ order.depositAddressExplorerUrl }})
-{{#order.depositTransactions}}Deposit Transaction: {{ amount }} [{{ tx_hash }}]({{ tx_explorer_url }})
+{{#order.depositTransactions}}Deposit Transaction: {{ amount }} {{ order.fromCurrency }} [{{ tx_hash }}]({{ tx_explorer_url }})
 {{/order.depositTransactions}}
 
 {{ order.explain }}
