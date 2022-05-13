@@ -92,6 +92,20 @@ class BotOrder:
 	def fromAmount(self): raise AttributeError("The property 'fromAmount' is readonly and cannot be deleted.")
 
 	@property
+	def toAmount(self): return getattr(self._api_order_v2, "to").amount
+	@toAmount.setter
+	def toAmount(self, value): raise AttributeError("The property 'toAmount' is readonly and cannot be set.")
+	@toAmount.deleter
+	def toAmount(self): raise AttributeError("The property 'toAmount' is readonly and cannot be deleted.")
+
+	@property
+	def toCurrency(self): return getattr(self._api_order_v2, "to").currency
+	@toCurrency.setter
+	def toCurrency(self, value): raise AttributeError("The property 'toCurrency' is readonly and cannot be set.")
+	@toCurrency.deleter
+	def toCurrency(self): raise AttributeError("The property 'toCurrency' is readonly and cannot be deleted.")
+
+	@property
 	def fromCurrency(self): return getattr(self._api_order_v2, "from").currency
 	@fromCurrency.setter
 	def fromCurrency(self, value): raise AttributeError("The property 'fromCurrency' is readonly and cannot be set.")
