@@ -36,7 +36,7 @@ class Commander:
 		# TODO
 		pass
 
-	def order(self, variant_order_identifier: str) -> BotOrder:
+	def find_order(self, variant_order_identifier: str) -> Optional[BotOrder]:
 		try:
 			order: Order = self._cexpay_api_client.order_fetch(
 				order_id = variant_order_identifier,
@@ -45,11 +45,14 @@ class Commander:
 			return BotOrder(order)
 		except NotFoundException as e:
 			# Look like 'variant_order_identifier' is a client order identifier
-			order: Order = self._cexpay_api_client.order_fetch_by_client_id(
-				client_order_id = variant_order_identifier,
-				use_merchant_family = True
-			)
-			return BotOrder(order)
+			try:
+				order: Order = self._cexpay_api_client.order_fetch_by_client_id(
+					client_order_id = variant_order_identifier,
+					use_merchant_family = True
+				)
+				return BotOrder(order)
+			except NotFoundException as e:
+				return None
 
 	def address(self, variant_address: str) -> list[str]:
 		order_ids: list[str] = self._cexpay_api_client.order_fetch_by_address(
