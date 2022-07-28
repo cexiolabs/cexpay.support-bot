@@ -5,3 +5,6 @@
 {{#orders}}
 • [{{ orderId }}]({{ orderReferenceUrl }})
 {{/orders}}
+{{#overflowSize}}
+... +{{overflowSize}} более старых ордеров
+{{/overflowSize}}
