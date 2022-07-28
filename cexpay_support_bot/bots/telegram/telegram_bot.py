@@ -143,10 +143,20 @@ class TelegramBot:
 			
 			order_ids: list = self._commander.address(variant_address = variant_address)
 
+			order_ids_len = len(order_ids)
+
+			if order_ids_len > 32:
+				truncated_order_ids = order_ids[0:32]
+				overflow_len = order_ids_len - 32
+			else:
+				truncated_order_ids = order_ids
+				overflow_len = None
+
 			render_context: dict = {
 				"input": _TelegramMarkdownWrap(variant_address),
-				"orders": [_TelegramMarkdownWrap(_TelegramOrderReference(self._cexpay_board_url, x)) for x in order_ids],
-				"isUsed": len(order_ids) > 0
+				"orders": [_TelegramMarkdownWrap(_TelegramOrderReference(self._cexpay_board_url, x)) for x in truncated_order_ids],
+				"isUsed": len(truncated_order_ids) > 0,
+				"overflowSize": overflow_len
 			}
 
 			response_text: str = render_message(__name__, "address.mustache.txt", render_context)
