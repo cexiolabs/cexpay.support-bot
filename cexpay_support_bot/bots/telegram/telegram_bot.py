@@ -3,6 +3,7 @@ from chevron import render
 from telegram import Chat, Message, ParseMode, Update
 from telegram.ext import CallbackContext, CommandHandler, Filters, Handler, MessageHandler, Updater
 from telegram.utils.helpers import escape_markdown
+from typing import Optional
 
 from cexpay_support_bot.bots.utils import render_message
 from cexpay_support_bot.commander import Commander
@@ -96,15 +97,21 @@ class TelegramBot:
 				if not command.endswith(bot_name):
 					return
 			
-			bot_order: BotOrder = self._commander.order(variant_order_identifier = variant_order_identifier)
+			bot_order: Optional[BotOrder] = self._commander.find_order(variant_order_identifier = variant_order_identifier)
+			if bot_order is not None:
+				template_name = "order.mustache.txt"
+				render_context: dict = {
+					"input": _TelegramMarkdownWrap(variant_order_identifier),
+					"order": _TelegramMarkdownWrap(bot_order),
+					"orderReferenceUrl": _TelegramOrderReference(self._cexpay_board_url, bot_order.orderId).orderReferenceUrl
+				}
+			else:
+				template_name = "order-not-found.mustache.txt"
+				render_context: dict = {
+					"input": _TelegramMarkdownWrap(variant_order_identifier)
+				}
 
-			render_context: dict = {
-				"input": _TelegramMarkdownWrap(variant_order_identifier),
-				"order": _TelegramMarkdownWrap(bot_order),
-				"orderReferenceUrl": _TelegramOrderReference(self._cexpay_board_url, bot_order.orderId).orderReferenceUrl
-			}
-
-			response_text: str = render_message(__name__, "order.mustache.txt", render_context)
+			response_text: str = render_message(__name__, template_name, render_context)
 
 			context.bot.send_message(
 				chat_id = update.effective_chat.id,
